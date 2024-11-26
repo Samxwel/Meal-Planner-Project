@@ -1,10 +1,13 @@
 import React from "react";
-import { View, Text, ScrollView, Button, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Button, StyleSheet, Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { generatePDF } from "../services/pdf"; // PDF generator utility
 import { patientData } from "../services/patient";
+
+const screenWidth = Dimensions.get("window").width;
+
 const ReportMealPlanScreen = () => {
-  const { name, disease, stage, personalDetails, nutritionalAnalysis, foodLogs, progressTracking, feedback } = patientData;
+  const { name, disease, stage, nutritionalAnalysis, foodLogs, progressTracking, feedback } = patientData;
 
   return (
     <ScrollView style={styles.container}>
@@ -19,59 +22,74 @@ const ReportMealPlanScreen = () => {
       </View>
 
       {/* Nutritional Analysis */}
-      {/* <View style={styles.section}>
+      <View style={styles.section}>
         <Text style={styles.title}>Nutritional Analysis</Text>
+        <Text style={styles.subtitle}>Calories and Protein</Text>
         <LineChart
           data={{
             labels: nutritionalAnalysis.map((data) => data.day),
             datasets: [
-              { data: nutritionalAnalysis.map((data) => data.calories), label: "Calories" },
-              { data: nutritionalAnalysis.map((data) => data.protein), label: "Protein" },
+              { data: nutritionalAnalysis.map((data) => data.calories), color: () => "#ff6384" }, // Red line for calories
+              { data: nutritionalAnalysis.map((data) => data.protein), color: () => "#36a2eb" }, // Blue line for protein
             ],
           }}
-          width={300}
-          height={200}
+          width={screenWidth - 40}
+          height={220}
+          yAxisLabel=""
+          yAxisSuffix="kcal"
           chartConfig={{
-            backgroundColor: "#e26a00",
-            backgroundGradientFrom: "#fb8c00",
-            backgroundGradientTo: "#ffa726",
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            backgroundColor: "#fff",
+            backgroundGradientFrom: "#f7f7f7",
+            backgroundGradientTo: "#e8e8e8",
+            decimalPlaces: 1,
+            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
           }}
+          style={styles.chart}
         />
-      </View> */}
-
-      {/* Food Logs */}
-      <View style={styles.section}>
-        <Text style={styles.title}>Food Logs</Text>
-        {foodLogs.map((log, index) => (
-          <Text key={index}>
-            {log.meal}: {log.item} ({log.portion}) - {log.calories} kcal
-          </Text>
-        ))}
+        <View style={styles.legend}>
+          <View style={[styles.legendItem, { backgroundColor: "#ff6384" }]} />
+          <Text>Calories</Text>
+          <View style={[styles.legendItem, { backgroundColor: "#36a2eb" }]} />
+          <Text>Protein</Text>
+        </View>
       </View>
 
       {/* Progress Tracking */}
-      {/* <View style={styles.section}>
+      <View style={styles.section}>
         <Text style={styles.title}>Progress Tracking</Text>
+        <Text style={styles.subtitle}>Weight, Blood Pressure, and Sugar Levels</Text>
         <LineChart
           data={{
             labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
             datasets: [
-              { data: progressTracking.weight, label: "Weight (kg)" },
-              { data: progressTracking.bloodPressure, label: "Blood Pressure (mmHg)" },
-              { data: progressTracking.sugarLevel, label: "Sugar Level (mg/dL)" },
+              { data: progressTracking.weight, color: () => "#f39c12" }, // Orange line for weight
+              { data: progressTracking.bloodPressure, color: () => "#27ae60" }, // Green line for BP
+              { data: progressTracking.sugarLevel, color: () => "#e74c3c" }, // Red line for sugar
             ],
           }}
-          width={300}
-          height={200}
+          width={screenWidth - 40}
+          height={220}
+          yAxisSuffix=""
           chartConfig={{
-            backgroundColor: "#022173",
-            backgroundGradientFrom: "#1e3c72",
-            backgroundGradientTo: "#2a5298",
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            backgroundColor: "#fff",
+            backgroundGradientFrom: "#f7f7f7",
+            backgroundGradientTo: "#e8e8e8",
+            decimalPlaces: 1,
+            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
           }}
+          style={styles.chart}
         />
-      </View> */}
+        <View style={styles.legend}>
+          <View style={[styles.legendItem, { backgroundColor: "#f39c12" }]} />
+          <Text>Weight</Text>
+          <View style={[styles.legendItem, { backgroundColor: "#27ae60" }]} />
+          <Text>Blood Pressure</Text>
+          <View style={[styles.legendItem, { backgroundColor: "#e74c3c" }]} />
+          <Text>Sugar Level</Text>
+        </View>
+      </View>
 
       {/* Feedback */}
       <View style={styles.section}>
@@ -90,6 +108,20 @@ const styles = StyleSheet.create({
   header: { fontSize: 24, fontWeight: "bold", marginBottom: 16 },
   section: { marginBottom: 24 },
   title: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
+  subtitle: { fontSize: 14, marginBottom: 8 },
+  chart: { marginVertical: 8, borderRadius: 16 },
+  legend: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginTop: 10,
+  },
+  legendItem: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 5,
+  },
 });
 
 export default ReportMealPlanScreen;

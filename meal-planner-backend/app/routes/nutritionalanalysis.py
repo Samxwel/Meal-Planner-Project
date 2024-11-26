@@ -7,8 +7,12 @@ from ..models.foodlog import FoodLog
 from ..models.User_Meal_Plan import UserMealPlan
 from datetime import date, timedelta
 from sqlalchemy import func
+from datetime import timedelta
+from sqlalchemy import extract
 
 bp = Blueprint('nutritionalanalysis', __name__)
+
+
 
 @bp.route('/generate', methods=['POST'])
 def generate_nutritional_analysis():
@@ -20,96 +24,147 @@ def generate_nutritional_analysis():
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
 
-        # Fetch the latest stage_name for the user from UserMealPlan
-        user_meal_plan = UserMealPlan.query.filter_by(user_id=user_id).first()
-        if not user_meal_plan:
-            return jsonify({'error': 'User meal plan not found'}), 404
+        # Fetch all food logs for the user
+        food_logs = FoodLog.query.filter_by(user_id=user_id).order_by(FoodLog.log_date).all()
+        if not food_logs:
+            return jsonify({'error': 'No food logs found for the user'}), 404
 
-        stage_name = user_meal_plan.stage_name
+        # Group logs by daily, weekly, and monthly timeframes
+        daily_data = []
+        weekly_data = {}
+        monthly_data = {}
 
-        # Fetch user's disease ID
-        user = User.query.filter_by(user_id=user_id).first()
-        if not user or not user.disease_id:
-            return jsonify({'error': 'User or associated disease not found'}), 404
+        start_date = food_logs[0].log_date
+        current_date = date.today()
+        total_days = (current_date - start_date).days + 1
 
-        disease_id = user.disease_id
+        # Initialize week and month tracking
+        week_num = 1
+        last_week_start = start_date
+        current_month = start_date.month
 
-        # Fetch meal plan targets for the user's disease and stage
-        meal_plan = MealPlan.query.filter_by(disease_id=disease_id, stage_name=stage_name).first()
-        if not meal_plan:
-            return jsonify({'error': 'Meal plan for the specified stage not found'}), 404
+        # Iterate through logs to group by week and month
+        for log in food_logs:
+            day_of_week = log.log_date.strftime('%A')  # Get day name (e.g., "Monday")
+            daily_data.append({
+                'log_date': log.log_date,
+                'day_variant': day_of_week,
+                'calories': log.calories,
+                'protein': log.protein,
+                'carbs': log.carbs,
+                'fats': log.fats,
+                'fiber': log.fiber,
+                'sat_fat': log.sat_fat
+            })
 
-        # Current date
-        today = date.today()
+            # Weekly grouping
+            if (log.log_date - last_week_start).days >= 7:
+                week_num += 1
+                last_week_start = log.log_date
+            if week_num not in weekly_data:
+                weekly_data[week_num] = {'calories': [], 'protein': [], 'carbs': [], 'fats': [], 'fiber': [], 'sat_fat': []}
+            weekly_data[week_num]['calories'].append(log.calories)
+            weekly_data[week_num]['protein'].append(log.protein)
+            weekly_data[week_num]['carbs'].append(log.carbs)
+            weekly_data[week_num]['fats'].append(log.fats)
+            weekly_data[week_num]['fiber'].append(log.fiber)
+            weekly_data[week_num]['sat_fat'].append(log.sat_fat)
 
-        # Aggregate daily logs
-        daily_logs = db.session.query(
-            func.sum(FoodLog.calories).label('daily_calories'),
-            func.sum(FoodLog.protein).label('daily_protein'),
-            func.sum(FoodLog.carbs).label('daily_carbs'),
-            func.sum(FoodLog.fats).label('daily_fats'),
-            func.sum(FoodLog.fiber).label('daily_fiber'),
-            func.sum(FoodLog.sat_fat).label('daily_sat_fat')
-        ).filter(FoodLog.user_id == user_id, FoodLog.log_date == today).first()
+            # Monthly grouping
+            if log.log_date.month != current_month:
+                current_month = log.log_date.month
+            if current_month not in monthly_data:
+                monthly_data[current_month] = {'calories': [], 'protein': [], 'carbs': [], 'fats': [], 'fiber': [], 'sat_fat': []}
+            monthly_data[current_month]['calories'].append(log.calories)
+            monthly_data[current_month]['protein'].append(log.protein)
+            monthly_data[current_month]['carbs'].append(log.carbs)
+            monthly_data[current_month]['fats'].append(log.fats)
+            monthly_data[current_month]['fiber'].append(log.fiber)
+            monthly_data[current_month]['sat_fat'].append(log.sat_fat)
 
-        if not any(daily_logs):
-            return jsonify({'error': 'No food logs for today found'}), 404
+        # Calculate weekly averages
+        weekly_averages = [
+            {
+                'week': f'Week {week}',
+                'calories': sum(data['calories']) / len(data['calories']),
+                'protein': sum(data['protein']) / len(data['protein']),
+                'carbs': sum(data['carbs']) / len(data['carbs']),
+                'fats': sum(data['fats']) / len(data['fats']),
+                'fiber': sum(data['fiber']) / len(data['fiber']),
+                'sat_fat': sum(data['sat_fat']) / len(data['sat_fat'])
+            }
+            for week, data in weekly_data.items()
+        ]
 
-        # Calculate monthly and yearly aggregates
-        start_of_month = today.replace(day=1)
-        start_of_year = today.replace(month=1, day=1)
+        # Calculate monthly averages
+        monthly_averages = [
+            {
+                'month': current_date.replace(month=month).strftime('%B'),
+                'calories': sum(data['calories']) / len(data['calories']),
+                'protein': sum(data['protein']) / len(data['protein']),
+                'carbs': sum(data['carbs']) / len(data['carbs']),
+                'fats': sum(data['fats']) / len(data['fats']),
+                'fiber': sum(data['fiber']) / len(data['fiber']),
+                'sat_fat': sum(data['sat_fat']) / len(data['sat_fat'])
+            }
+            for month, data in monthly_data.items()
+        ]
 
-        monthly_logs = db.session.query(
-            func.sum(FoodLog.calories).label('monthly_calories'),
-            func.sum(FoodLog.protein).label('monthly_protein'),
-            func.sum(FoodLog.carbs).label('monthly_carbs'),
-            func.sum(FoodLog.fats).label('monthly_fats'),
-            func.sum(FoodLog.fiber).label('monthly_fiber'),
-            func.sum(FoodLog.sat_fat).label('monthly_sat_fat')
-        ).filter(
-            FoodLog.user_id == user_id,
-            FoodLog.log_date >= start_of_month,
-            FoodLog.log_date <= today
-        ).first()
+        # Insert into NutritionAnalysis
+        analysis_entries = []
 
-        yearly_logs = db.session.query(
-            func.sum(FoodLog.calories).label('yearly_calories'),
-            func.sum(FoodLog.protein).label('yearly_protein'),
-            func.sum(FoodLog.carbs).label('yearly_carbs'),
-            func.sum(FoodLog.fats).label('yearly_fats'),
-            func.sum(FoodLog.fiber).label('yearly_fiber'),
-            func.sum(FoodLog.sat_fat).label('yearly_sat_fat')
-        ).filter(
-            FoodLog.user_id == user_id,
-            FoodLog.log_date >= start_of_year,
-            FoodLog.log_date <= today
-        ).first()
+        # Insert daily entries
+        for daily_entry in daily_data:
+            analysis_entries.append(
+                NutritionAnalysis(
+                    user_id=user_id,
+                    log_date=daily_entry['log_date'],
+                    timeframe='daily',
+                    day_variant=daily_entry['day_variant'],
+                    calories=daily_entry['calories'],
+                    protein=daily_entry['protein'],
+                    carbs=daily_entry['carbs'],
+                    fats=daily_entry['fats'],
+                    fiber=daily_entry['fiber'],
+                    sat_fat=daily_entry['sat_fat']
+                )
+            )
 
-        # Insert data into the NutritionAnalysis table
-        analysis_entry = NutritionAnalysis(
-            user_id=user_id,
-            log_date=today,
-            daily_calories=daily_logs.daily_calories,
-            daily_protein=daily_logs.daily_protein,
-            daily_carbs=daily_logs.daily_carbs,
-            daily_fats=daily_logs.daily_fats,
-            daily_fiber=daily_logs.daily_fiber,
-            daily_sat_fat=daily_logs.daily_sat_fat,
-            monthly_calories=monthly_logs.monthly_calories,
-            monthly_protein=monthly_logs.monthly_protein,
-            monthly_carbs=monthly_logs.monthly_carbs,
-            monthly_fats=monthly_logs.monthly_fats,
-            monthly_fiber=monthly_logs.monthly_fiber,
-            monthly_sat_fat=monthly_logs.monthly_sat_fat,
-            yearly_calories=yearly_logs.yearly_calories,
-            yearly_protein=yearly_logs.yearly_protein,
-            yearly_carbs=yearly_logs.yearly_carbs,
-            yearly_fats=yearly_logs.yearly_fats,
-            yearly_fiber=yearly_logs.yearly_fiber,
-            yearly_sat_fat=yearly_logs.yearly_sat_fat
-        )
+        # Insert weekly entries
+        for weekly_entry in weekly_averages:
+            analysis_entries.append(
+                NutritionAnalysis(
+                    user_id=user_id,
+                    log_date=current_date,  # Assign the current date for weekly summary
+                    timeframe='weekly',
+                    day_variant=weekly_entry['week'],  # "Week 1", "Week 2"
+                    calories=weekly_entry['calories'],
+                    protein=weekly_entry['protein'],
+                    carbs=weekly_entry['carbs'],
+                    fats=weekly_entry['fats'],
+                    fiber=weekly_entry['fiber'],
+                    sat_fat=weekly_entry['sat_fat']
+                )
+            )
 
-        db.session.add(analysis_entry)
+        # Insert monthly entries
+        for monthly_entry in monthly_averages:
+            analysis_entries.append(
+                NutritionAnalysis(
+                    user_id=user_id,
+                    log_date=current_date,  # Assign the current date for monthly summary
+                    timeframe='monthly',
+                    day_variant=monthly_entry['month'],  # "January", "February"
+                    calories=monthly_entry['calories'],
+                    protein=monthly_entry['protein'],
+                    carbs=monthly_entry['carbs'],
+                    fats=monthly_entry['fats'],
+                    fiber=monthly_entry['fiber'],
+                    sat_fat=monthly_entry['sat_fat']
+                )
+            )
+
+        db.session.bulk_save_objects(analysis_entries)
         db.session.commit()
 
         return jsonify({'message': 'Nutritional analysis generated successfully'}), 201
@@ -117,6 +172,7 @@ def generate_nutritional_analysis():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+
     
 
 @bp.route('/', methods=['POST'])
@@ -157,10 +213,11 @@ def get_nutrition_analysis():
         yearly_targets = {key: value * 365 for key, value in daily_targets.items()}
 
         # Fetch nutrition analysis data
+        today = date.today()
         nutrition_analysis = (
             NutritionAnalysis.query
             .filter_by(user_id=user_id)
-            .filter(NutritionAnalysis.log_date <= date.today())
+            .filter(NutritionAnalysis.log_date <= today)
             .order_by(NutritionAnalysis.log_date.desc())
             .all()
         )
@@ -168,32 +225,41 @@ def get_nutrition_analysis():
         if not nutrition_analysis:
             return jsonify({'error': 'No nutrition analysis data found for the user'}), 404
 
-        # Serialize the data
-        serialized_data = [
-            {
-                'log_date': str(na.log_date),
-                'calories': na.daily_calories,
-                'protein': na.daily_protein,
-                'carbs': na.daily_carbs,
-                'fats': na.daily_fats,
-                'fiber': na.daily_fiber,
-                'sat_fat': na.daily_sat_fat,
-            }
-            for na in nutrition_analysis
+        # Organize data into timeframes
+        daily_data = [
+            na.serialize() for na in nutrition_analysis if na.timeframe == 'daily'
+        ]
+        weekly_data = [
+            na.serialize() for na in nutrition_analysis if na.timeframe == 'weekly'
+        ]
+        monthly_data = [
+            na.serialize() for na in nutrition_analysis if na.timeframe == 'monthly'
         ]
 
-        # Split data based on timeframes
-        daily_data = [entry for entry in serialized_data if entry['log_date'] == str(date.today())] or []
-        monthly_data = [entry for entry in serialized_data if entry['log_date'] >= str(date.today().replace(day=1))] or []
-        yearly_data = [entry for entry in serialized_data if entry['log_date'].startswith(str(date.today().year))] or []
+        # Extract data for the current day, month, and year
+        current_month = today.month
+        current_year = today.year
+
+        filtered_daily_data = [
+            entry for entry in daily_data if entry['log_date'] == today.isoformat()
+        ]
+        filtered_monthly_data = [
+            entry for entry in monthly_data if entry['log_date'][:7] == f"{current_year}-{current_month:02d}"
+        ]
+        filtered_yearly_data = [
+            entry for entry in monthly_data if entry['log_date'][:4] == str(current_year)
+        ]
 
         # Build response
         response = {
-            'daily': {'data': daily_data, 'targets': daily_targets},
-            'monthly': {'data': monthly_data, 'targets': monthly_targets},
-            'yearly': {'data': yearly_data, 'targets': yearly_targets},
+            'daily': {'data': filtered_daily_data, 'targets': daily_targets},
+            'weekly': {'data': weekly_data},
+            'monthly': {'data': filtered_monthly_data, 'targets': monthly_targets},
+            'yearly': {'data': filtered_yearly_data, 'targets': yearly_targets},
         }
+
         return jsonify(response), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
