@@ -5,7 +5,7 @@ from ..models.users import User
 from ..models.meal_plans import MealPlan
 from ..models.foodlog import FoodLog
 from ..models.User_Meal_Plan import UserMealPlan
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from sqlalchemy import func
 from datetime import timedelta
 from sqlalchemy import extract
@@ -13,14 +13,12 @@ from sqlalchemy import extract
 bp = Blueprint('nutritionalanalysis', __name__)
 
 
-
 @bp.route('/generate', methods=['POST'])
 def generate_nutritional_analysis():
     try:
         # Get user_id from the request
-        user_id = request.json.get('user_id')
+        user_id = 30  # Fixed user_id for testing
 
-        # Validate input
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
 
@@ -29,85 +27,80 @@ def generate_nutritional_analysis():
         if not food_logs:
             return jsonify({'error': 'No food logs found for the user'}), 404
 
-        # Group logs by daily, weekly, and monthly timeframes
         daily_data = []
-        weekly_data = {}
+        weekly_data = []
         monthly_data = {}
 
         start_date = food_logs[0].log_date
-        current_date = date.today()
-        total_days = (current_date - start_date).days + 1
-
-        # Initialize week and month tracking
-        week_num = 1
-        last_week_start = start_date
         current_month = start_date.month
+        last_week_start = start_date
+        weekly_temp = {'calories': [], 'protein': [], 'carbs': [], 'fats': [], 'fiber': [], 'sat_fat': []}
+        week_number = 1
 
-        # Iterate through logs to group by week and month
         for log in food_logs:
-            day_of_week = log.log_date.strftime('%A')  # Get day name (e.g., "Monday")
+            # Add daily data
             daily_data.append({
                 'log_date': log.log_date,
-                'day_variant': day_of_week,
+                'day_variant': log.log_date.strftime('%A'),
                 'calories': log.calories,
                 'protein': log.protein,
                 'carbs': log.carbs,
                 'fats': log.fats,
                 'fiber': log.fiber,
-                'sat_fat': log.sat_fat
+                'sat_fat': log.sat_fat,
             })
 
-            # Weekly grouping
+            # Weekly aggregation
             if (log.log_date - last_week_start).days >= 7:
-                week_num += 1
+                weekly_avg = {key: sum(weekly_temp[key]) / len(weekly_temp[key]) for key in weekly_temp if weekly_temp[key]}
+                weekly_avg.update({'week': f'Week {week_number}', 'log_date': last_week_start + timedelta(days=6)})
+                weekly_data.append(weekly_avg)
+                weekly_temp = {key: [] for key in weekly_temp}
                 last_week_start = log.log_date
-            if week_num not in weekly_data:
-                weekly_data[week_num] = {'calories': [], 'protein': [], 'carbs': [], 'fats': [], 'fiber': [], 'sat_fat': []}
-            weekly_data[week_num]['calories'].append(log.calories)
-            weekly_data[week_num]['protein'].append(log.protein)
-            weekly_data[week_num]['carbs'].append(log.carbs)
-            weekly_data[week_num]['fats'].append(log.fats)
-            weekly_data[week_num]['fiber'].append(log.fiber)
-            weekly_data[week_num]['sat_fat'].append(log.sat_fat)
+                week_number += 1
 
-            # Monthly grouping
-            if log.log_date.month != current_month:
-                current_month = log.log_date.month
-            if current_month not in monthly_data:
-                monthly_data[current_month] = {'calories': [], 'protein': [], 'carbs': [], 'fats': [], 'fiber': [], 'sat_fat': []}
-            monthly_data[current_month]['calories'].append(log.calories)
-            monthly_data[current_month]['protein'].append(log.protein)
-            monthly_data[current_month]['carbs'].append(log.carbs)
-            monthly_data[current_month]['fats'].append(log.fats)
-            monthly_data[current_month]['fiber'].append(log.fiber)
-            monthly_data[current_month]['sat_fat'].append(log.sat_fat)
+            # Add to weekly temp
+            weekly_temp['calories'].append(log.calories)
+            weekly_temp['protein'].append(log.protein)
+            weekly_temp['carbs'].append(log.carbs)
+            weekly_temp['fats'].append(log.fats)
+            weekly_temp['fiber'].append(log.fiber)
+            weekly_temp['sat_fat'].append(log.sat_fat)
 
-        # Calculate weekly averages
-        weekly_averages = [
-            {
-                'week': f'Week {week}',
-                'calories': sum(data['calories']) / len(data['calories']),
-                'protein': sum(data['protein']) / len(data['protein']),
-                'carbs': sum(data['carbs']) / len(data['carbs']),
-                'fats': sum(data['fats']) / len(data['fats']),
-                'fiber': sum(data['fiber']) / len(data['fiber']),
-                'sat_fat': sum(data['sat_fat']) / len(data['sat_fat'])
-            }
-            for week, data in weekly_data.items()
-        ]
+            # Monthly aggregation
+            log_year = log.log_date.year
+            log_month = log.log_date.month
+            month_key = (log_year, log_month)
+
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {'calories': [], 'protein': [], 'carbs': [], 'fats': [], 'fiber': [], 'sat_fat': []}
+
+            monthly_data[month_key]['calories'].append(log.calories)
+            monthly_data[month_key]['protein'].append(log.protein)
+            monthly_data[month_key]['carbs'].append(log.carbs)
+            monthly_data[month_key]['fats'].append(log.fats)
+            monthly_data[month_key]['fiber'].append(log.fiber)
+            monthly_data[month_key]['sat_fat'].append(log.sat_fat)
+
+        # Finalize last week's data
+        if weekly_temp['calories']:
+            weekly_avg = {key: sum(weekly_temp[key]) / len(weekly_temp[key]) for key in weekly_temp if weekly_temp[key]}
+            weekly_avg.update({'week': f'Week {week_number}', 'log_date': last_week_start + timedelta(days=6)})
+            weekly_data.append(weekly_avg)
 
         # Calculate monthly averages
         monthly_averages = [
             {
-                'month': current_date.replace(month=month).strftime('%B'),
+                'month': datetime(year, month, 1).strftime('%B'),
+                'log_date': max(log.log_date for log in food_logs if log.log_date.month == month and log.log_date.year == year),
                 'calories': sum(data['calories']) / len(data['calories']),
                 'protein': sum(data['protein']) / len(data['protein']),
                 'carbs': sum(data['carbs']) / len(data['carbs']),
                 'fats': sum(data['fats']) / len(data['fats']),
                 'fiber': sum(data['fiber']) / len(data['fiber']),
-                'sat_fat': sum(data['sat_fat']) / len(data['sat_fat'])
+                'sat_fat': sum(data['sat_fat']) / len(data['sat_fat']),
             }
-            for month, data in monthly_data.items()
+            for (year, month), data in monthly_data.items()
         ]
 
         # Insert into NutritionAnalysis
@@ -131,13 +124,13 @@ def generate_nutritional_analysis():
             )
 
         # Insert weekly entries
-        for weekly_entry in weekly_averages:
+        for weekly_entry in weekly_data:
             analysis_entries.append(
                 NutritionAnalysis(
                     user_id=user_id,
-                    log_date=current_date,  # Assign the current date for weekly summary
+                    log_date=weekly_entry['log_date'],  # The last date of the week
                     timeframe='weekly',
-                    day_variant=weekly_entry['week'],  # "Week 1", "Week 2"
+                    day_variant=weekly_entry['week'],
                     calories=weekly_entry['calories'],
                     protein=weekly_entry['protein'],
                     carbs=weekly_entry['carbs'],
@@ -152,9 +145,9 @@ def generate_nutritional_analysis():
             analysis_entries.append(
                 NutritionAnalysis(
                     user_id=user_id,
-                    log_date=current_date,  # Assign the current date for monthly summary
+                    log_date=monthly_entry['log_date'],  # The last date of the month
                     timeframe='monthly',
-                    day_variant=monthly_entry['month'],  # "January", "February"
+                    day_variant=monthly_entry['month'],
                     calories=monthly_entry['calories'],
                     protein=monthly_entry['protein'],
                     carbs=monthly_entry['carbs'],
@@ -173,15 +166,18 @@ def generate_nutritional_analysis():
         db.session.rollback()
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
 
+
+
     
 
 @bp.route('/', methods=['POST'])
 def get_nutrition_analysis():
     try:
         # Get the user_id from the request
-        user_id = request.json.get('user_id')
-        if not user_id:
-            return jsonify({'error': 'user_id is required'}), 400
+        # user_id = request.json.get('user_id')
+        # if not user_id:
+        #     return jsonify({'error': 'user_id is required'}), 400
+        user_id = 30
 
         # Fetch user details
         user = User.query.filter_by(user_id=user_id).first()

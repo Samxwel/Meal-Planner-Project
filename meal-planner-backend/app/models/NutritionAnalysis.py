@@ -10,6 +10,7 @@ class NutritionAnalysis(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     log_date = db.Column(db.Date, nullable=False, default=date.today)
     timeframe = db.Column(db.String(10), nullable=False)  # Can be 'daily', 'monthly', or 'yearly'
+    day_variant = db.Column(db.String(20), nullable=True)  # Stores contextual info (e.g., "Monday" or "Week 1")
     calories = db.Column(db.Numeric(10, 2))
     protein = db.Column(db.Numeric(10, 2))
     carbs = db.Column(db.Numeric(10, 2))
@@ -25,6 +26,7 @@ class NutritionAnalysis(db.Model):
             'user_id': self.user_id,
             'log_date': self.log_date.isoformat(),
             'timeframe': self.timeframe,
+            'day_variant': self.day_variant,
             'calories': float(self.calories) if self.calories is not None else None,
             'protein': float(self.protein) if self.protein is not None else None,
             'carbs': float(self.carbs) if self.carbs is not None else None,
