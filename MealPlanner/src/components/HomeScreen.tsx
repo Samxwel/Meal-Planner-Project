@@ -62,6 +62,10 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.buttonText}>🔔 Edit Profile</Text>
           <Text style={styles.buttonDescription}>Ensure your details are captured</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('NutritionList')}>
+          <Text style={styles.buttonText}>💬 Messages</Text>
+          <Text style={styles.buttonDescription}>Message the Nutritionist and get answers</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );

@@ -16,11 +16,14 @@ class User(db.Model):
     disease_id = db.Column(db.Integer, db.ForeignKey('diseases.disease_id'))  # Foreign key to diseases table
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+    # Relationships
     disease = db.relationship("Disease", back_populates="users")
     foodlog = db.relationship("FoodLog", back_populates="users")
     nutritionalanalysis = db.relationship("NutritionAnalysis", back_populates="users")
     user_meal_plan = db.relationship("UserMealPlan", back_populates="users")
-    
+    sent_messages = db.relationship('Message', foreign_keys='Message.sender_id',  lazy='dynamic',back_populates='sender')
+    received_messages = db.relationship('Message', foreign_keys='Message.receiver_id', back_populates='receiver', lazy='dynamic')
+
     def serialize(self):
         return {
             'user_id': self.user_id,
@@ -34,5 +37,7 @@ class User(db.Model):
             'activity_level': self.activity_level,
             'disease_id': self.disease_id,
             'disease_name': self.disease.disease_name if self.disease else None,  # Get the disease name from the relationship
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'sent_messages': [message.serialize() for message in self.sent_messages],
+            'received_messages': [message.serialize() for message in self.received_messages]
         }

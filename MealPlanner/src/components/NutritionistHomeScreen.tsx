@@ -11,9 +11,6 @@ const NutritionistHomeScreen = () => {
             <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PatientList')}>
                 <Text style={styles.buttonText}>View Patients</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Messaging')}>
-                <Text style={styles.buttonText}>Messages</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('MealPlanTarget')}>
                 <Text style={styles.buttonText}>Review Meal Plan Targets</Text>
             </TouchableOpacity>

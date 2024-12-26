@@ -34,7 +34,10 @@ const MealPlanListScreen = ({ navigation, route }) => {
         setStageAvailability((prevState) => ({
           ...prevState,
           [stageName]: response.data.stage_exists
+         
         }));
+      
+
       } catch (err) {
         console.log('Error checking stage availability:', err);
       }
@@ -55,24 +58,43 @@ const MealPlanListScreen = ({ navigation, route }) => {
         stage_name: stage.stage_name,
         stage_description: stage.stage_description,
       }));
-      navigation.navigate('MealPlanDetail', { stageExists: stageAvailability[stage.stage_name] });
+      
+      navigation.navigate('MealPlanDetail');
     } catch (error) {
       console.log('Error saving selected stage:', error);
     }
   };
-  
 
-  const renderStage = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.stageContainer, 
-        !stageAvailability[item.stage_name] && { opacity: 0.5 }]} // Disable button if stage doesn't exist
-      onPress={() => stageAvailability[item.stage_name] && handleSelectStage(item)} // Disable onPress if stage doesn't exist
-      disabled={!stageAvailability[item.stage_name]} // Disable button if stage doesn't exist
-    >
-      <Text style={styles.stageName}>Stage: {item.stage_name}</Text>
-      <Text style={styles.stageDescription}>{item.stage_description}</Text>
-    </TouchableOpacity>
-  );
+  const renderStage = ({ item }) => {
+    
+    // Check if at least one stage is available
+    const isAnyStageAvailable = Object.values(stageAvailability).some(isAvailable => isAvailable);
+  
+    // Check if the current stage is available
+    const isStageAvailable = stageAvailability[item.stage_name];
+  
+    // Determine the opacity (faded or not)
+    const opacity = !isAnyStageAvailable || isStageAvailable ? 1 : 0.5;
+  
+    // Determine if the button should be disabled
+    const isDisabled = isAnyStageAvailable && !isStageAvailable;
+  
+    return (
+      <TouchableOpacity
+        style={[styles.stageContainer, { opacity }]} // Apply opacity based on availability
+        onPress={() => {
+          if (isStageAvailable || !isAnyStageAvailable) {
+            handleSelectStage(item); // Handle the select stage function if the stage is available or none are available
+          }
+        }}
+        disabled={isDisabled} // Disable the button if it is not available when another stage is available
+      >
+        <Text style={styles.stageName}>Stage: {item.stage_name}</Text>
+        <Text style={styles.stageDescription}>{item.stage_description}</Text>
+      </TouchableOpacity>
+    );
+  };
+  
 
   if (loading) {
     return (

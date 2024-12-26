@@ -187,6 +187,27 @@ def get_patients():
     
     return jsonify(result)
 
+@bp.route('/nutritionists', methods=['GET'])
+def get_nutritionists():
+    # Query to fetch patients with their disease details
+    patients = (
+        db.session.query(User.user_id, User.name)
+        .filter(User.role == 'nutritionist')  # Ensure we only fetch patients
+        .all()
+    )
+    
+    # Prepare the result to send back as JSON
+    result = [
+        {
+            "user_id": user_id,
+            "name": name,
+            
+        }
+        for user_id, name in patients  # Unpacking correctly
+    ]
+    
+    return jsonify(result)
+
 # Update a patient
 @bp.route('/patients/<int:user_id>', methods=['PUT'])
 def update_patient(user_id):
@@ -215,3 +236,42 @@ def delete_patient(user_id):
     db.session.delete(patient)
     db.session.commit()
     return jsonify({"message": "Patient deleted successfully"})
+
+@bp.route('/reportsuser', methods=['GET'])
+def get_patient_data():
+    try:
+        # Retrieve user_id and stage_name_id from the request args
+        user_id = request.args.get('user_id', type=int)
+        stage_name_id = request.args.get('stage_name_id', type=int)
+
+        if not user_id or not stage_name_id:
+            return jsonify({"error": "user_id and stage_name_id are required."}), 400
+
+        # Query the User and related Disease data
+        user = User.query.filter_by(user_id=user_id).first()
+        if not user:
+            return jsonify({"error": "User not found."}), 404
+
+        disease = Disease.query.filter_by(disease_id=user.disease_id, stage_name_id=stage_name_id).first()
+        if not disease:
+            return jsonify({"error": "Disease or stage not found."}), 404
+
+        # Construct the response data
+        patient_data = {
+            "name": user.name,
+            "disease": disease.disease_name,
+            "stage": {
+                "name": disease.stage_name,
+                "description": disease.stage_description
+            },
+            "personalDetails": {
+                "email": user.email,
+                "age": user.age,
+                "gender": user.gender
+            }
+        }
+
+        return jsonify(patient_data), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

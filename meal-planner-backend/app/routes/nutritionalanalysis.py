@@ -17,8 +17,7 @@ bp = Blueprint('nutritionalanalysis', __name__)
 def generate_nutritional_analysis():
     try:
         # Get user_id from the request
-        user_id = 30  # Fixed user_id for testing
-
+        user_id = request.json.get('user_id')
         if not user_id:
             return jsonify({'error': 'Missing user_id'}), 400
 
@@ -174,10 +173,9 @@ def generate_nutritional_analysis():
 def get_nutrition_analysis():
     try:
         # Get the user_id from the request
-        # user_id = request.json.get('user_id')
-        # if not user_id:
-        #     return jsonify({'error': 'user_id is required'}), 400
-        user_id = 30
+        user_id = request.json.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id is required'}), 400
 
         # Fetch user details
         user = User.query.filter_by(user_id=user_id).first()
@@ -197,6 +195,7 @@ def get_nutrition_analysis():
         if not meal_plan:
             return jsonify({'error': 'MealPlan not found for the user\'s stage and disease'}), 404
 
+        # Daily, weekly, monthly, and yearly targets
         daily_targets = {
             'calories': float(meal_plan.caloric_goal),
             'protein': float(meal_plan.protein_goal),
@@ -205,15 +204,14 @@ def get_nutrition_analysis():
             'fiber': float(meal_plan.fiber_goal),
             'sat_fat': float(meal_plan.sat_fat_goal),
         }
+        weekly_targets = {key: value * 7 for key, value in daily_targets.items()}
         monthly_targets = {key: value * 30 for key, value in daily_targets.items()}
         yearly_targets = {key: value * 365 for key, value in daily_targets.items()}
 
         # Fetch nutrition analysis data
-        today = date.today()
         nutrition_analysis = (
             NutritionAnalysis.query
             .filter_by(user_id=user_id)
-            .filter(NutritionAnalysis.log_date <= today)
             .order_by(NutritionAnalysis.log_date.desc())
             .all()
         )
@@ -232,30 +230,15 @@ def get_nutrition_analysis():
             na.serialize() for na in nutrition_analysis if na.timeframe == 'monthly'
         ]
 
-        # Extract data for the current day, month, and year
-        current_month = today.month
-        current_year = today.year
-
-        filtered_daily_data = [
-            entry for entry in daily_data if entry['log_date'] == today.isoformat()
-        ]
-        filtered_monthly_data = [
-            entry for entry in monthly_data if entry['log_date'][:7] == f"{current_year}-{current_month:02d}"
-        ]
-        filtered_yearly_data = [
-            entry for entry in monthly_data if entry['log_date'][:4] == str(current_year)
-        ]
-
         # Build response
         response = {
-            'daily': {'data': filtered_daily_data, 'targets': daily_targets},
-            'weekly': {'data': weekly_data},
-            'monthly': {'data': filtered_monthly_data, 'targets': monthly_targets},
-            'yearly': {'data': filtered_yearly_data, 'targets': yearly_targets},
+            'daily': {'data': daily_data, 'targets': daily_targets},
+            'weekly': {'data': weekly_data, 'targets': weekly_targets},
+            'monthly': {'data': monthly_data, 'targets': monthly_targets},
+            'yearly': {'data': monthly_data, 'targets': yearly_targets},  # Yearly uses the monthly data
         }
 
         return jsonify(response), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-

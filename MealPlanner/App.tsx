@@ -24,6 +24,8 @@ import ReportMealPlan from './src/components/ReportMealPlanScreen';
 import UserMealPlanScreen from './src/components/UserMealPlanScreen';
 import MealPlanTarget from './src/components/MealPlanTargetsScreen';
 import EditProfileScreen from './src/components/EditProfileScreen';
+import NutritionistList from './src/components/NutritionList';
+import MessageScreen from './src/components/MessageScreen';
 const Stack = createStackNavigator();
 
 const App = () => {
@@ -51,6 +53,8 @@ const App = () => {
         <Stack.Screen name="UserMealPlanScreen" component={UserMealPlanScreen} />
         <Stack.Screen name="MealPlanTarget" component={MealPlanTarget} />
         <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
+        <Stack.Screen name='NutritionList' component={NutritionistList}/>
+        <Stack.Screen name='MessageScreen' component={MessageScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

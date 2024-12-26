@@ -1,16 +1,60 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Button, ImageBackground } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ImageBackground } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons'; // Icons for stars
+import { submitFeedback } from '../services/api'; // Import submitFeedback function
 
 const FeedbackScreen = () => {
   const [feedback, setFeedback] = useState('');
   const [mealSatisfaction, setMealSatisfaction] = useState(0);
   const [appExperience, setAppExperience] = useState(0);
   const [recommendation, setRecommendation] = useState(0);
-  
+  const [userId, setUserId] = useState(null); // State for userId
+
   // Handle star rating
   const handleRating = (setter: React.Dispatch<React.SetStateAction<number>>, rate: number) => {
     setter(rate);
+  };
+
+  // Fetch user ID from AsyncStorage when the component mounts
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        if (storedUserId) {
+          setUserId(storedUserId); // Set the userId state if found
+        } else {
+          console.error('User ID not found');
+        }
+      } catch (error) {
+        console.error('Error fetching user ID from AsyncStorage:', error);
+      }
+    };
+    fetchUserId();
+  }, []);
+
+  // Function to submit feedback
+  const handleSubmitFeedback = async () => {
+    if (!userId) {
+      alert('User not authenticated. Please log in.');
+      return;
+    }
+
+    const feedbackData = {
+      user_id: userId,
+      meal_satisfaction: mealSatisfaction,
+      app_experience: appExperience,
+      recommendation: recommendation,
+      feedback_text: feedback,
+    };
+
+    try {
+      const response = await submitFeedback(feedbackData);
+      alert('Feedback submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting feedback:', error.response.data);
+      alert('Failed to submit feedback');
+    }
   };
 
   return (
@@ -84,7 +128,7 @@ const FeedbackScreen = () => {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitButton}>
+        <TouchableOpacity style={styles.submitButton} onPress={handleSubmitFeedback}>
           <Text style={styles.submitButtonText}>Submit Feedback</Text>
         </TouchableOpacity>
       </ScrollView>

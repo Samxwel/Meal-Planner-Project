@@ -147,3 +147,30 @@ def get_user_meal_plan_Nutritionist(user_id):
         return jsonify(results), 200
     except Exception as e:
         return jsonify({'message': 'An error occurred', 'error': str(e)}), 500
+
+# Delete a UserMealPlan based on user_id
+@bp.route('/delete_by_user', methods=['DELETE'])
+def delete_user_meal_plan():
+    # Extract user_id from the query parameters
+    user_id = request.args.get('user_id', type=int)
+    
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+
+    try:
+        # Query the UserMealPlan to find all records associated with the user_id
+        user_meal_plans = UserMealPlan.query.filter_by(user_id=user_id).all()
+        
+        if not user_meal_plans:
+            return jsonify({"error": "No meal plans found for the given user_id"}), 404
+
+        # Delete all the meal plans for the specified user
+        for meal_plan in user_meal_plans:
+            db.session.delete(meal_plan)
+        
+        db.session.commit()  # Commit the transaction
+
+        return jsonify({"message": "User's meal plans deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()  # Rollback the transaction in case of error
+        return jsonify({"error": str(e)}), 500

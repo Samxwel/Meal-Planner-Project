@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 // Set up the base URL for the backend API
-const API_URL = 'http://192.168.0.106:5000/api'; // Replace with your actual backend URL
+const API_URL = 'http://192.168.169.40:5000/api'; // Replace with your actual backend URL
 
 // Axios instance for making requests
 const api = axios.create({
@@ -32,6 +32,22 @@ export const getUser = async (userId) => {
   }
 };
 
+export const fetchUser = async (userId, stageNameId) => {
+  try {
+    const response = await api.get(`/users/reportsuser`, {
+      params: {
+        user_id: userId,
+        stage_name_id: stageNameId,
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    throw error; // Re-throw error to be handled in the component
+  }
+};
+
+
 export const updateUser = async (userId, updatedData) => {
   try {
     const response = await api.put(`/users/${userId}`, updatedData);
@@ -42,6 +58,17 @@ export const updateUser = async (userId, updatedData) => {
   }
 };
 
+export const deleteUserMealPlan = async (userId) => {
+  try {
+    const response = await api.delete(`/user_meal_plan/delete_by_user`, {
+      params: { user_id: userId }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting user meal plan:', error);
+    throw error;
+  }
+};
 
 
 // Meal Planning APIs
@@ -58,7 +85,12 @@ export const updateMealPlan = async (planId, updatedData) => {
 };
 
 export const submitFeedback = async (feedbackData) => {
-  return api.post('/meal-plans/feedback', feedbackData);
+  try {
+    const response = await api.post('/feedback/submit', feedbackData);
+    console.log(response);
+  } catch (error) {
+    console.error('Error submitting feedback:', error.response.data);
+  }
 };
 export const saveMealPlan = async (data) => {
   return await api.post(`/user_meal_plan/save`, data);
@@ -92,8 +124,19 @@ export const logFood = async ({ user_id, food_item, meal_time,log_date }) => {
 };
 
 export const fetchFoodLog = async (userId) => {
-  return api.get(`/food-log/${userId}`);
+  try {
+    const response = await api.get('/foodlog/get_logs', {
+      params: {
+        user_id: userId,
+      },
+    });
+    return response.data; // Return the data directly for easier consumption
+  } catch (error) {
+    console.error('Error fetching food logs:', error);
+    throw error; // Re-throw the error to be handled by the caller
+  }
 };
+
 
 export const fetchNutritionAnalysis = async (userId) => {
   return api.get(`/nutrition-tracking/${userId}`);
@@ -103,16 +146,28 @@ export const generateNutritionalAnalysis = async (data) => {
   return response;
 };
 
-export const GetNutritionalAnalysis = async ({ userId, timeFrame }) => {
+export const GetNutritionalAnalysis = async ({ userId }) => {
   try {
-    const response = await api.post('/nutritionalanalysis/', {
-      user_id: userId, // Correctly send user_id
-      timeFrame: timeFrame, // Correctly send timeFrame
-    });
-    const { data, labels } = response.data;
-    return { data, labels };
+    // Make the API call with the user_id
+    const response = await api.post('/nutritionalanalysis/', { user_id: userId });
+
+    // Extract and return the response data directly
+    return response.data;
   } catch (error) {
-    console.error('Error generating nutritional analysis:', error.response?.data || error.message);
+    console.error('Error fetching nutritional analysis:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getNutritionalAnalysis = async ({ userId }) => {
+  try {
+    // Make the API call with the user_id
+    const response = await api.post('/nutritionalanalysis/', { user_id: userId });
+
+    // Extract and return the response data directly
+    return response;
+  } catch (error) {
+    console.error('Error fetching nutritional analysis:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -246,6 +301,21 @@ export const deleteDisease = async (diseaseId) => {
 export const deleteMealPlan = async (planId) => {
   const response = await api.delete(`/meal_plans/${planId}`);
   return response;
+};
+
+export const getNutritionists = async () => {
+  const response = await api.get(`/users/nutritionists`);
+  return response.data;
+};
+
+export const getMessages = async (user_id) => {
+  const response = await api.get(`/messages/get_messages`, { params: { user_id } });
+  return response.data;
+};
+
+export const sendMessages = async (messageData) => {
+  const response = await api.post(`/messages/send_message`, messageData);
+  return response.data;
 };
 // Export the configured Axios instance
 export default api;

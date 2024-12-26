@@ -4,8 +4,7 @@ from app.db import db
 
 bp = Blueprint('progress_tracking', __name__)
 
-# Create progress tracking record
-bp = Blueprint('progress', __name__, url_prefix='/progress')
+
 
 @bp.route('/log', methods=['POST'])
 def log_progress():

@@ -33,6 +33,7 @@ const LoginScreen = ({ navigation }) => {
 
         // Store the userId in AsyncStorage
         await AsyncStorage.setItem('userId', JSON.stringify(userId)); // Assuming userId is a string
+        await AsyncStorage.setItem('Role', JSON.stringify(role))
 
         // Navigate based on the role
         navigation.navigate(role === 'nutritionist' ? 'NutritionistHomeScreen' : 'Home');

@@ -22,6 +22,10 @@ const PatientListScreen = ({ navigation }) => {
         navigation.navigate('UserMealPlanScreen', { userId });
     };
 
+    const handleMessaging = (user) => {
+        navigation.navigate('Messaging', { user });
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Patient List</Text>
@@ -41,6 +45,12 @@ const PatientListScreen = ({ navigation }) => {
                             >
                                 <Text style={styles.buttonText}>Meal Plan</Text>
                             </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.button, styles.messagingButton]}
+                                onPress={() => handleMessaging(item)}
+                            >
+                                <Text style={styles.buttonText}>Message</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 )}
@@ -58,6 +68,7 @@ const styles = StyleSheet.create({
     actionButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
     button: { padding: 10, borderRadius: 5 },
     mealPlanButton: { backgroundColor: '#2196F3' },
+    messagingButton: { backgroundColor: '#4CAF50' },
     buttonText: { color: '#fff', fontWeight: 'bold' },
 });
 

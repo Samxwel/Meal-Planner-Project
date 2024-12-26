@@ -15,7 +15,7 @@ def create_app():
     db.init_app(app)
 
     # Import routes and register blueprints
-    from .routes import users, meal_plans, meals, food_items, progress_tracking, feedback, provider_interactions, foodlog, nutritionalanalysis, User_meal_plan, diseases
+    from .routes import users, meal_plans, meals, food_items, progress_tracking, feedback, provider_interactions, foodlog, nutritionalanalysis, User_meal_plan, diseases, Messages
     
     app.register_blueprint(users.bp, url_prefix='/api/users')
     app.register_blueprint(meal_plans.bp, url_prefix='/api/meal_plans')
@@ -28,5 +28,7 @@ def create_app():
     app.register_blueprint(nutritionalanalysis.bp, url_prefix='/api/nutritionalanalysis')
     app.register_blueprint(User_meal_plan.bp, url_prefix='/api/user_meal_plan')
     app.register_blueprint(diseases.bp, url_prefix='/api/diseases')
+    app.register_blueprint(Messages.bp, url_prefix='/api/messages')
+    
 
     return app

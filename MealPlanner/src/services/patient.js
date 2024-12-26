@@ -1,9 +1,9 @@
 export const patientData = {
-    name: "John Doe",
+    name: "Strum Doe",
     disease: "Diabetes",
     stage: { name: "Stage 2", description: "Moderate symptoms with controlled medication" },
     personalDetails: {
-      email: "johndoe@example.com",
+      email: "strum@example.com",
       age: 45,
       gender: "Male",
     },
